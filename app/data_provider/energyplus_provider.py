@@ -19,3 +19,6 @@ class EnergyPlusProvider(DataProvider):
 
     def apply_action(self, action: dict) -> bool:
         raise NotImplementedError
+
+    def get_forecast(self, timestep: int, window: int) -> list:
+        raise NotImplementedError

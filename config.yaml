@@ -1,7 +1,7 @@
 # Eco-Loop Building Agents — config
 # Change `mode` to switch Development <-> Production without touching code.
 mode: development   # development | production
-demo_mode: true     # true = replay cached LLM decisions for deterministic demo video
+demo_mode: false    # true = replay cached LLM decisions for deterministic demo video
 
 llm:
   # Any OpenAI-compatible endpoint works here: Groq, Together AI, OpenRouter, Ollama (local).
@@ -17,7 +17,7 @@ comfort:
   setpoint_max_c: 28
 
 loop:
-  max_iterations: 96     # e.g. 15-min timesteps over 24h for a demo run
+  max_iterations: 96   # e.g. 15-min timesteps over 24h for a demo run
   timestep_minutes: 15
 
 paths:
@@ -39,3 +39,19 @@ agent:
   # not a real decision, and snapped back to the previous setpoint.
   # Tune this after observing real LLM behavior in ai_run_log.jsonl.
   min_meaningful_change_c: 0.3
+  # Forecast-aware reasoning (Milestone 5): how many future timesteps of
+  # outdoor temp/occupancy are shown to the agent per decision. 0 disables
+  # forecasting and falls back to Milestone 2 reactive-only behavior.
+  forecast_window: 4
+  # Decision Memory (Milestone 5): how many of the agent's own past
+  # decisions it reasons over as trend context. 0 disables memory.
+  memory_window: 5
+
+verification:
+  # Self-Verification (Milestone 5): rule-based sanity check between the
+  # Agent and Executor. Annotates actions with pass/fail + notes for
+  # explainability — never blocks execution. The Executor's hard comfort
+  # bound enforcement remains the only actual safety gate.
+  enabled: true
+  # Flag (not block) any single-step setpoint change larger than this.
+  max_setpoint_jump_c: 3.0

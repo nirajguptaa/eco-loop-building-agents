@@ -40,3 +40,23 @@ class MockDataProvider(DataProvider):
     def apply_action(self, action: dict) -> bool:
         self.last_action = action
         return True
+
+    def get_forecast(self, timestep: int, window: int) -> list:
+        """Raw future rows (no action-feedback heuristic applied — see
+        class docstring) for the next `window` timesteps. Does not wrap
+        around the CSV: forecast horizon is genuinely limited by how
+        much future data exists, same as a real forecast feed would be
+        near the edge of its window."""
+        forecast = []
+        for offset in range(1, window + 1):
+            idx = timestep + offset
+            if idx >= len(self.rows):
+                break
+            row = self.rows[idx]
+            forecast.append({
+                "timestep": idx,
+                "outdoor_temp_c": float(row["outdoor_temp_c"]),
+                "occupancy": int(row["occupancy"]),
+                "energy_kwh": float(row["energy_kwh"]),
+            })
+        return forecast

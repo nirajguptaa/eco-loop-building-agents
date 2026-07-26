@@ -14,6 +14,7 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 import streamlit as st
 import plotly.graph_objects as go
+import pandas as pd
 from data_loader import load_dashboard_data
 
 
@@ -167,4 +168,96 @@ else:
     st.info(
         f"AI decision log not available. {data.ai.error or ''} "
         f"Run `python -m app.main` to generate it."
+    )
+
+
+# ---------------------------------------------------------------------
+# Decision Explainability (Milestone 5, feature 5) — reasoning timeline,
+# confidence trend, risk distribution, verification results. Gated on
+# actually having non-null structured data, not just column presence,
+# since a replayed pre-Milestone-5 transcript has these columns but they
+# are all null/"unknown" — showing charts for that would be misleading.
+# Every existing section above is untouched.
+# ---------------------------------------------------------------------
+st.subheader("Decision Explainability")
+_has_explainability = bool(data.analytics) and data.ai.available
+if _has_explainability:
+    df = data.ai.df
+
+    if "confidence_trend" in data.analytics:
+        fig_conf = go.Figure()
+        fig_conf.add_trace(go.Scatter(
+            x=df["timestep"], y=pd.to_numeric(df["action_confidence"], errors="coerce"),
+            mode="lines+markers", name="Confidence"
+        ))
+        fig_conf.update_layout(
+            title="Decision Confidence Over Time", xaxis_title="Timestep",
+            yaxis_title="Confidence (0-1)", yaxis_range=[0, 1]
+        )
+        st.plotly_chart(fig_conf, use_container_width=True)
+
+    if "risk_distribution" in data.analytics:
+        risk_counts = data.analytics["risk_distribution"]
+        fig_risk = go.Figure(data=[go.Bar(x=list(risk_counts.keys()), y=list(risk_counts.values()))])
+        fig_risk.update_layout(title="Risk Level Distribution", xaxis_title="Risk level", yaxis_title="Count")
+        st.plotly_chart(fig_risk, use_container_width=True)
+
+    if "action_verification_passed" in df.columns:
+        verified_col = df["action_verification_passed"].dropna()
+        if not verified_col.empty:
+            pass_counts = verified_col.astype(bool).value_counts()
+            fig_verify = go.Figure(data=[go.Bar(
+                x=["Passed" if k else "Flagged" for k in pass_counts.index],
+                y=pass_counts.values
+            )])
+            fig_verify.update_layout(title="Self-Verification Results", yaxis_title="Count")
+            st.plotly_chart(fig_verify, use_container_width=True)
+
+    st.markdown("**Reasoning timeline**")
+    reasoning_cols = {
+        "timestep": "timestep",
+        "action_reason": "reason",
+        "action_confidence": "confidence",
+        "action_risk_level": "risk_level",
+        "action_forecast_summary": "forecast_summary",
+        "action_alternative_considered": "alternative_considered",
+        "action_verification_passed": "verified",
+        "action_verification_notes": "verification_notes",
+    }
+    present = [c for c in reasoning_cols if c in df.columns]
+    st.dataframe(
+        df[present].rename(columns=reasoning_cols),
+        use_container_width=True, height=350
+    )
+else:
+    st.info(
+        "No structured decision data (confidence, risk level, forecast reasoning) "
+        "found for this run yet. This appears if you're replaying a transcript "
+        "recorded before Milestone 5, or verification is disabled. Run "
+        "`python -m app.main` with a live LLM call to record a fresh transcript "
+        "with structured output, then switch demo_mode back to true."
+    )
+
+
+# ---------------------------------------------------------------------
+# Decision Analytics (Milestone 5, feature 6)
+# ---------------------------------------------------------------------
+st.subheader("Decision Analytics")
+if data.analytics:
+    a = data.analytics
+    cols = st.columns(4)
+    if "avg_confidence" in a:
+        cols[0].metric("Avg Confidence", a["avg_confidence"])
+    if "avg_adjustment_c" in a:
+        cols[1].metric("Avg Adjustment", f"{a['avg_adjustment_c']} C")
+    if "largest_adjustment_c" in a:
+        cols[2].metric("Largest Adjustment", f"{a['largest_adjustment_c']} C")
+    if "adjustment_frequency_pct" in a:
+        cols[3].metric("Adjustment Frequency", f"{a['adjustment_frequency_pct']}%")
+    if "verification_pass_rate_pct" in a:
+        st.metric("Verification Pass Rate", f"{a['verification_pass_rate_pct']}%")
+else:
+    st.info(
+        "Decision analytics not available yet — needs a completed AI run "
+        "with structured decision output (see note above)."
     )

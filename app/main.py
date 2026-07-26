@@ -4,6 +4,7 @@ from app.config import load_config, get_llm_api_key
 from app.llm_provider import LLMProvider
 from app.replay_provider import ReplayLLMProvider, ReplayExhaustedError
 from app.agent import Agent
+from app.verifier import Verifier
 from app.executor import Executor
 from app.logger import RunLogger
 from app.data_provider.mock_provider import MockDataProvider
@@ -35,18 +36,33 @@ def run():
     provider = build_provider(cfg)
     llm = build_llm(cfg, api_key)
     agent = Agent(llm, cfg["comfort"], cfg["agent"])
+    verifier = Verifier(cfg["comfort"], cfg.get("verification", {}))
     executor = Executor(provider, cfg["comfort"])
     logger = RunLogger(cfg["paths"]["ai_log_output"])
+
+    # Forecast-aware reasoning (Milestone 5, feature 1): configurable
+    # window, defaults to 0 (forecasting off) if unset so an older
+    # config.yaml without this key still runs unchanged.
+    forecast_window = cfg["agent"].get("forecast_window", 0)
 
     previous_action = None
     for t in range(cfg["loop"]["max_iterations"]):
         metrics = provider.get_metrics(t)
-        action = agent.decide(metrics, previous_action=previous_action)
+        forecast = provider.get_forecast(t, forecast_window)
+        action = agent.decide(t, metrics, forecast=forecast, previous_action=previous_action)
+
+        # Self-Verification (Milestone 5, feature 4): annotate only, never
+        # block. The Executor below remains the sole hard safety gate.
+        verified, verification_notes = verifier.verify(action, previous_action)
+        action["verification_passed"] = verified
+        action["verification_notes"] = verification_notes
+
         result = executor.run(action)
         previous_action = result.action
         logger.log(t, metrics, result.action, result.note)
         print(f"[t={t}] temp={metrics['zone_temp_c']}C energy={metrics['energy_kwh']}kWh "
-              f"-> setpoint={result.action.get('temperature_setpoint')} ({result.note})")
+              f"-> setpoint={result.action.get('temperature_setpoint')} ({result.note}) "
+              f"[verified={verified}]")
 
 
 if __name__ == "__main__":
