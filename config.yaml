@@ -1,0 +1,26 @@
+# Eco-Loop Building Agents — config
+# Change `mode` to switch Development <-> Production without touching code.
+mode: development   # development | production
+demo_mode: false     # true = replay cached LLM decisions for deterministic demo video
+
+llm:
+  # Any OpenAI-compatible endpoint works here: Groq, Together AI, OpenRouter, Ollama (local).
+  # Only these three fields change when switching providers.
+  base_url: "https://api.groq.com/openai/v1"
+  api_key_env: "LLM_API_KEY"      # name of the env var holding the key (never hardcode keys)
+  model: "llama-3.3-70b-versatile"
+
+comfort:
+  min_temp_c: 20
+  max_temp_c: 26
+  setpoint_min_c: 18
+  setpoint_max_c: 28
+
+loop:
+  max_iterations: 96     # e.g. 15-min timesteps over 24h for a demo run
+  timestep_minutes: 15
+
+paths:
+  mock_metrics_csv: "data/mock_metrics.csv"
+  demo_transcript: "data/demo_transcript.jsonl"
+  log_output: "data/run_log.jsonl"
