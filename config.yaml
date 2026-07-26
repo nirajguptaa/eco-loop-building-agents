@@ -1,14 +1,14 @@
 # Eco-Loop Building Agents — config
 # Change `mode` to switch Development <-> Production without touching code.
 mode: development   # development | production
-demo_mode: false    # true = replay cached LLM decisions for deterministic demo video
+demo_mode: true   # true = replay cached LLM decisions for deterministic demo video
 
 llm:
   # Any OpenAI-compatible endpoint works here: Groq, Together AI, OpenRouter, Ollama (local).
   # Only these three fields change when switching providers.
   base_url: "https://api.groq.com/openai/v1"
   api_key_env: "LLM_API_KEY"      # name of the env var holding the key (never hardcode keys)
-  model: "llama-3.3-70b-versatile"
+  model: "llama-3.1-8b-instant"
 
 comfort:
   min_temp_c: 20
@@ -26,6 +26,8 @@ paths:
   ai_log_output: "data/ai_run_log.jsonl"
   baseline_log_output: "data/baseline_run_log.jsonl"
   summary_output: "data/savings_summary.json"
+  executive_summary_output: "data/executive_summary.json"
+  report_output: "reports/report.md"
 
 baseline:
   # Fixed setpoint a traditional rule-based BMS would use — the

@@ -1,0 +1,28 @@
+{
+  "total_energy_kwh": 154.394,
+  "baseline_energy_kwh": 171.966,
+  "energy_saved_kwh": 17.572,
+  "energy_saved_pct": 10.22,
+  "comfort_maintained": true,
+  "total_ai_decisions": 96,
+  "avg_confidence": null,
+  "avg_risk_score": null,
+  "avg_risk_level": null,
+  "peak_occupancy": {
+    "occupied_timesteps": 41,
+    "occupied_pct": 42.7
+  },
+  "peak_energy_period": {
+    "timestep": 49,
+    "time_of_day": "12:15",
+    "energy_kwh": 2.853,
+    "occupied": true
+  },
+  "largest_hvac_adjustment_c": 0.0,
+  "most_common_action": {
+    "field": "ventilation",
+    "value": "low",
+    "count": 96,
+    "pct": 100.0
+  }
+}

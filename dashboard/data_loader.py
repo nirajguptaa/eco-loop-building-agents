@@ -7,6 +7,11 @@ file, corrupted line, incomplete run). The only difference here is that a
 Streamlit page can't call sys.exit() on bad data — so each source is loaded
 independently and failures are returned as status, not raised, letting the
 dashboard show "baseline ready, AI run not yet completed" instead of crashing.
+
+Log shaping and all derived statistics (decision analytics, executive
+summary, insights, recommendations) live in app/analytics.py (Milestone 6)
+so the dashboard and app/reporting.py compute them from exactly one
+implementation. This module only loads data and wires it together.
 """
 import json
 import os
@@ -17,6 +22,13 @@ import pandas as pd
 
 from app.config import load_config
 from app.comparison import load_log, validate_complete, LogValidationError
+from app.analytics import (
+    entries_to_df as _entries_to_df,
+    compute_decision_analytics,
+    compute_executive_summary,
+    generate_insights,
+    generate_recommendations,
+)
 
 
 @dataclass
@@ -38,19 +50,9 @@ class DashboardData:
     summary_stale: bool = False
     summary_stale_reason: Optional[str] = None
     analytics: Optional[dict] = None
-
-
-def _entries_to_df(entries: list) -> pd.DataFrame:
-    """Flattens the nested {metrics, action, note} log structure into a
-    flat DataFrame — one row per timestep, columns for each metric and
-    action field, ready for plotting."""
-    rows = []
-    for e in entries:
-        row = {"timestep": e["timestep"], "note": e.get("note", "")}
-        row.update({f"metric_{k}": v for k, v in e.get("metrics", {}).items()})
-        row.update({f"action_{k}": v for k, v in e.get("action", {}).items()})
-        rows.append(row)
-    return pd.DataFrame(rows).sort_values("timestep").reset_index(drop=True)
+    executive_summary: Optional[dict] = None
+    insights: Optional[list] = None
+    recommendations: Optional[list] = None
 
 
 def _mtime(path: str) -> Optional[float]:
@@ -79,50 +81,6 @@ def _load_one(path: str, label: str, expected_timesteps: int) -> LogLoadResult:
         return LogLoadResult(available=False, error=str(e), timesteps_found=found, mtime=mtime)
 
     return LogLoadResult(available=True, df=_entries_to_df(entries), timesteps_found=len(entries), mtime=mtime)
-
-
-def compute_decision_analytics(ai_df: Optional[pd.DataFrame]) -> Optional[dict]:
-    """Decision Analytics (Milestone 5, feature 6). Reads only from the
-    already-loaded AI dataframe — no new file I/O, no duplicated parsing.
-    Returns None (not an empty dict) if the AI run isn't available or
-    none of the structured fields it depends on have real data yet (e.g.
-    a pre-Milestone-5 transcript with the new columns present but null),
-    so the dashboard can tell 'no data' apart from 'zero'."""
-    if ai_df is None or ai_df.empty:
-        return None
-
-    analytics: dict = {}
-
-    if "action_confidence" in ai_df.columns:
-        conf = pd.to_numeric(ai_df["action_confidence"], errors="coerce").dropna()
-        if not conf.empty:
-            analytics["avg_confidence"] = round(float(conf.mean()), 3)
-            analytics["confidence_trend"] = conf.tolist()
-
-    if "action_risk_level" in ai_df.columns:
-        risk = ai_df["action_risk_level"].dropna()
-        risk = risk[risk != "unknown"]
-        if not risk.empty:
-            analytics["risk_distribution"] = risk.value_counts().to_dict()
-
-    if "action_temperature_setpoint" in ai_df.columns:
-        setpoints = pd.to_numeric(ai_df["action_temperature_setpoint"], errors="coerce")
-        deltas = setpoints.diff().abs().dropna()
-        if not deltas.empty:
-            analytics["avg_adjustment_c"] = round(float(deltas.mean()), 3)
-            analytics["largest_adjustment_c"] = round(float(deltas.max()), 3)
-            analytics["adjustment_frequency_pct"] = round(
-                100 * float((deltas > 0).sum()) / len(deltas), 1
-            )
-
-    if "action_verification_passed" in ai_df.columns:
-        verified = ai_df["action_verification_passed"].dropna()
-        if not verified.empty:
-            analytics["verification_pass_rate_pct"] = round(
-                100 * float(verified.astype(bool).mean()), 1
-            )
-
-    return analytics or None
 
 
 def _load_summary(path: str):
@@ -177,8 +135,27 @@ def load_dashboard_data() -> DashboardData:
 
     analytics = compute_decision_analytics(ai.df) if ai.available else None
 
+    # Executive Summary / Insights / Recommendations (Milestone 6). Computed
+    # on the fly from data already loaded above — no extra file reads, and
+    # no separate staleness tracking needed, since these are only ever
+    # built from logs+summary that already passed the freshness check
+    # above. Gated the same way the KPI summary is: both logs available
+    # AND the summary is fresh. This guarantees the dashboard and
+    # app/reporting.py (which calls the same app.analytics functions)
+    # never disagree.
+    executive_summary = insights = recommendations = None
+    if baseline.available and ai.available and summary and not summary_stale:
+        executive_summary = compute_executive_summary(
+            baseline.df, ai.df, summary, cfg["comfort"], cfg["loop"], analytics
+        )
+        insights = generate_insights(baseline.df, ai.df, executive_summary, cfg["comfort"], cfg["baseline"])
+        recommendations = generate_recommendations(
+            baseline.df, ai.df, executive_summary, insights, cfg["agent"], cfg["loop"]
+        )
+
     return DashboardData(
         cfg=cfg, baseline=baseline, ai=ai, summary=summary, summary_error=summary_error,
         summary_stale=summary_stale, summary_stale_reason=summary_stale_reason,
         analytics=analytics,
+        executive_summary=executive_summary, insights=insights, recommendations=recommendations,
     )

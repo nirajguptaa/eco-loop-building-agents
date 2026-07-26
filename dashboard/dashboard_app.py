@@ -74,6 +74,45 @@ else:
 
 
 # ---------------------------------------------------------------------
+# Executive Summary (Milestone 6). Gated exactly like the KPI cards
+# above (fresh summary + both logs available) since data.executive_summary
+# is derived from the same inputs via the shared app/analytics.py layer.
+# ---------------------------------------------------------------------
+st.subheader("Executive Summary")
+if data.executive_summary:
+    es = data.executive_summary
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Total AI Decisions", es["total_ai_decisions"])
+    c2.metric("Avg Confidence", es["avg_confidence"])
+    c3.metric("Avg Risk", f"{es['avg_risk_level']} ({es['avg_risk_score']})" if es["avg_risk_level"] else "n/a")
+    c4.metric("Largest HVAC Adjustment", f"{es['largest_hvac_adjustment_c']} C")
+
+    c5, c6, c7 = st.columns(3)
+    c5.metric(
+        "Peak Occupancy",
+        f"{es['peak_occupancy']['occupied_pct']}%",
+        help=f"{es['peak_occupancy']['occupied_timesteps']} of the run's timesteps were occupied."
+    )
+    c6.metric(
+        "Peak Energy Period",
+        es["peak_energy_period"]["time_of_day"],
+        help=f"t={es['peak_energy_period']['timestep']}, {es['peak_energy_period']['energy_kwh']} kWh"
+    )
+    mca = es["most_common_action"]
+    c7.metric(
+        "Most Common Action",
+        f"{mca['value']}" if mca["value"] is not None else "n/a",
+        help=f"{mca['field']}, {mca['pct']}% of decisions" if mca["value"] is not None else None
+    )
+else:
+    st.info(
+        "Executive summary not available yet — needs a fresh, complete baseline "
+        "and AI run. Run `python -m app.reporting` once both simulations and "
+        "`python -m app.comparison` have completed."
+    )
+
+
+# ---------------------------------------------------------------------
 # Charts — only rendered when both logs are individually available.
 # Each chart degrades gracefully: if only one side is available, that
 # one line still renders rather than blocking the whole section.
@@ -94,7 +133,7 @@ if data.baseline.available or data.ai.available:
             mode="lines", name="AI-driven"
         ))
     fig_energy.update_layout(title="Energy Use Over Time", xaxis_title="Timestep", yaxis_title="kWh")
-    st.plotly_chart(fig_energy, use_container_width=True)
+    st.plotly_chart(fig_energy, width="stretch")
 
     # --- Zone temperature over time, with comfort band shaded ---
     fig_temp = go.Figure()
@@ -114,7 +153,7 @@ if data.baseline.available or data.ai.available:
             mode="lines", name="AI zone temp"
         ))
     fig_temp.update_layout(title="Zone Temperature Over Time", xaxis_title="Timestep", yaxis_title="°C")
-    st.plotly_chart(fig_temp, use_container_width=True)
+    st.plotly_chart(fig_temp, width="stretch")
 
     # --- Setpoint over time ---
     fig_setpoint = go.Figure()
@@ -129,7 +168,8 @@ if data.baseline.available or data.ai.available:
             mode="lines+markers", name="AI setpoint"
         ))
     fig_setpoint.update_layout(title="Temperature Setpoint Over Time", xaxis_title="Timestep", yaxis_title="°C")
-    st.plotly_chart(fig_setpoint, use_container_width=True)
+    st.plotly_chart(fig_setpoint, width="stretch")
+    
 
     # --- Occupancy timeline, only if the column is present ---
     occupancy_source = data.ai.df if data.ai.available else (data.baseline.df if data.baseline.available else None)
@@ -143,7 +183,7 @@ if data.baseline.available or data.ai.available:
             title="Occupancy Over Time", xaxis_title="Timestep",
             yaxis=dict(title="Occupied (1) / Unoccupied (0)", tickvals=[0, 1])
         )
-        st.plotly_chart(fig_occ, use_container_width=True)
+        st.plotly_chart(fig_occ, width="stretch")
 else:
     st.info("No chart data available yet — run the baseline and/or AI simulation first.")
 
@@ -194,13 +234,13 @@ if _has_explainability:
             title="Decision Confidence Over Time", xaxis_title="Timestep",
             yaxis_title="Confidence (0-1)", yaxis_range=[0, 1]
         )
-        st.plotly_chart(fig_conf, use_container_width=True)
+        st.plotly_chart(fig_conf, width="stretch")
 
     if "risk_distribution" in data.analytics:
         risk_counts = data.analytics["risk_distribution"]
         fig_risk = go.Figure(data=[go.Bar(x=list(risk_counts.keys()), y=list(risk_counts.values()))])
         fig_risk.update_layout(title="Risk Level Distribution", xaxis_title="Risk level", yaxis_title="Count")
-        st.plotly_chart(fig_risk, use_container_width=True)
+        st.plotly_chart(fig_risk, width="stretch")
 
     if "action_verification_passed" in df.columns:
         verified_col = df["action_verification_passed"].dropna()
@@ -211,7 +251,7 @@ if _has_explainability:
                 y=pass_counts.values
             )])
             fig_verify.update_layout(title="Self-Verification Results", yaxis_title="Count")
-            st.plotly_chart(fig_verify, use_container_width=True)
+            st.plotly_chart(fig_verify, width="stretch")
 
     st.markdown("**Reasoning timeline**")
     reasoning_cols = {
@@ -260,4 +300,75 @@ else:
     st.info(
         "Decision analytics not available yet — needs a completed AI run "
         "with structured decision output (see note above)."
+    )
+
+
+# ---------------------------------------------------------------------
+# AI Performance (Milestone 6) — a compact recap of decision-quality
+# stats for judges, pulling from the same data.analytics dict as the
+# Decision Analytics section above (no recomputation).
+# ---------------------------------------------------------------------
+st.subheader("AI Performance")
+if data.analytics:
+    a = data.analytics
+    perf_lines = []
+    if "avg_confidence" in a:
+        perf_lines.append(f"- Average confidence: **{a['avg_confidence']}**")
+    if "verification_pass_rate_pct" in a:
+        perf_lines.append(f"- Self-verification pass rate: **{a['verification_pass_rate_pct']}%**")
+    if "risk_distribution" in a:
+        risk_str = ", ".join(f"{k}: {v}" for k, v in a["risk_distribution"].items())
+        perf_lines.append(f"- Risk distribution: {risk_str}")
+    st.markdown("\n".join(perf_lines) if perf_lines else "No AI performance data available yet.")
+else:
+    st.info("AI performance stats need a completed AI run with structured decision output.")
+
+
+# ---------------------------------------------------------------------
+# Decision Stability (Milestone 6) — how often the agent actually
+# changes the setpoint vs holds it, reusing the same adjustment-
+# frequency figures from data.analytics.
+# ---------------------------------------------------------------------
+st.subheader("Decision Stability")
+if data.analytics and "adjustment_frequency_pct" in data.analytics:
+    a = data.analytics
+    stability_cols = st.columns(3)
+    stability_cols[0].metric("Setpoint Changed", f"{a['adjustment_frequency_pct']}% of steps")
+    stability_cols[1].metric("Avg Adjustment", f"{a.get('avg_adjustment_c', 'n/a')} C")
+    stability_cols[2].metric("Largest Adjustment", f"{a.get('largest_adjustment_c', 'n/a')} C")
+    if a["adjustment_frequency_pct"] < 20:
+        st.success("Setpoint decisions are stable — changes are infrequent, not oscillating.")
+    else:
+        st.warning("Setpoint changes are frequent — worth checking whether the agent is reacting to noise.")
+else:
+    st.info("Decision stability metrics need a completed AI run with structured decision output.")
+
+
+# ---------------------------------------------------------------------
+# Top Insights (Milestone 6) — deterministic, rule-based sentences from
+# app.analytics.generate_insights(), computed once in data_loader.py.
+# ---------------------------------------------------------------------
+st.subheader("Top Insights")
+if data.insights:
+    for insight in data.insights:
+        st.markdown(f"- {insight}")
+else:
+    st.info(
+        "Building insights not available yet — needs a fresh, complete baseline "
+        "and AI run (same requirement as the Executive Summary above)."
+    )
+
+
+# ---------------------------------------------------------------------
+# Recommendations (Milestone 6) — deterministic, rule-based operational
+# suggestions from app.analytics.generate_recommendations().
+# ---------------------------------------------------------------------
+st.subheader("Recommendations")
+if data.recommendations:
+    for rec in data.recommendations:
+        st.markdown(f"- {rec}")
+else:
+    st.info(
+        "Recommendations not available yet — needs a fresh, complete baseline "
+        "and AI run (same requirement as the Executive Summary above)."
     )
