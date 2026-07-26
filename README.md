@@ -193,7 +193,7 @@ Dashboard + Reports
 ## Clone Repository
 
 ```bash
-git clone https://github.com/<your-username>/eco-loop-building-agents.git
+git clone https://github.com/nirajguptaa/eco-loop-building-agents.git
 
 cd eco-loop-building-agents
 ```
@@ -301,6 +301,20 @@ streamlit run dashboard/dashboard_app.py
 | Comfort Maintained | **Yes** |
 | Comfort Violations | **0** |
 
+## Dashboard Preview
+
+### Executive Summary
+
+![Executive Summary](docs/executive-summary.png)
+
+Displays the overall energy savings, comfort validation, executive KPIs, and AI performance summary.
+
+### Interactive Analytics Dashboard
+
+![Interactive Dashboard](docs/analytics-dashboard.png)
+
+Visualizes energy consumption, temperature trends, occupancy, AI decision logs, explainability, analytics, insights, and recommendations.
+
 ---
 
 # Dashboard
@@ -359,3 +373,9 @@ Computer Science & Engineering
 # Acknowledgements
 
 Developed as part of the **Honeywell AI Hackathon**, demonstrating autonomous AI-driven building energy optimization using EnergyPlus and Large Language Models.
+
+---
+
+# License
+
+This project was developed for the Honeywell AI Hackathon for educational and demonstration purposes.
