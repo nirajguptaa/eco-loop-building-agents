@@ -1,8 +1,43 @@
+# Virtual environment
 venv/
+.venv/
+env/
+
+# Python cache
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+
+# macOS
 .DS_Store
-.env
+
+# IDE
 .vscode/
 .idea/
-data/run_log.jsonl
+
+# Environment variables
+.env
+
+# Streamlit cache
+.streamlit/
+
+# Logs
+*.log
+
+# Python build artifacts
+build/
+dist/
+*.egg-info/
+
+# Test cache
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Generated simulation outputs (uncomment if you don't want to commit them)
+# data/ai_run_log.jsonl
+# data/baseline_run_log.jsonl
+# data/savings_summary.json
