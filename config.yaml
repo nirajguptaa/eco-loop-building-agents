@@ -1,7 +1,7 @@
 # Eco-Loop Building Agents — config
 # Change `mode` to switch Development <-> Production without touching code.
 mode: development   # development | production
-demo_mode: false     # true = replay cached LLM decisions for deterministic demo video
+demo_mode: true     # true = replay cached LLM decisions for deterministic demo video
 
 llm:
   # Any OpenAI-compatible endpoint works here: Groq, Together AI, OpenRouter, Ollama (local).

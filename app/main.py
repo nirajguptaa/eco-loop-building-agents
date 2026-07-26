@@ -1,5 +1,8 @@
+import sys
+
 from app.config import load_config, get_llm_api_key
 from app.llm_provider import LLMProvider
+from app.replay_provider import ReplayLLMProvider, ReplayExhaustedError
 from app.agent import Agent
 from app.executor import Executor
 from app.logger import RunLogger
@@ -15,12 +18,22 @@ def build_provider(cfg: dict):
     raise ValueError(f"Unknown mode: {cfg['mode']}")
 
 
+def build_llm(cfg: dict, api_key: str):
+    """demo_mode: true -> replay a pre-recorded transcript, zero API calls.
+    demo_mode: false -> call the live API, and record every accepted
+    action to the same transcript path so a live run always leaves you
+    with a fresh, replayable demo transcript afterward."""
+    if cfg.get("demo_mode"):
+        return ReplayLLMProvider(cfg["paths"]["demo_transcript"])
+    return LLMProvider(cfg, api_key, record_path=cfg["paths"]["demo_transcript"])
+
+
 def run():
     cfg = load_config()
     api_key = get_llm_api_key(cfg)
 
     provider = build_provider(cfg)
-    llm = LLMProvider(cfg, api_key)
+    llm = build_llm(cfg, api_key)
     agent = Agent(llm, cfg["comfort"], cfg["agent"])
     executor = Executor(provider, cfg["comfort"])
     logger = RunLogger(cfg["paths"]["ai_log_output"])
@@ -37,4 +50,11 @@ def run():
 
 
 if __name__ == "__main__":
-    run()
+    try:
+        run()
+    except ReplayExhaustedError as e:
+        # Demo-mode/replay failures are config problems (bad or missing
+        # transcript), not runtime crashes — same print-and-exit pattern
+        # comparison.py uses for LogValidationError.
+        print(str(e))
+        sys.exit(1)

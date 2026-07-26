@@ -45,12 +45,15 @@ if not data.baseline.available and not data.ai.available:
 
 
 # ---------------------------------------------------------------------
-# KPI cards — only rendered once savings_summary.json exists, since
-# that is the single validated source of truth for these numbers
-# (see app/comparison.py). The dashboard never recomputes savings
-# itself, to avoid ever showing a number that disagrees with the CLI.
+# KPI cards — only rendered when savings_summary.json exists AND is
+# currently fresh (see dashboard/data_loader.py:_check_summary_staleness).
+# Existence alone is not enough: a summary file from a previous
+# successful run can still be sitting on disk while the current AI or
+# baseline log is incomplete or has been overwritten since. Showing
+# those numbers next to an "AI run not ready" warning would let stale
+# results look like live ones — worse than showing nothing.
 # ---------------------------------------------------------------------
-if data.summary:
+if data.summary and not data.summary_stale:
     s = data.summary
     st.subheader("Summary")
     c1, c2, c3, c4, c5, c6 = st.columns(6)
@@ -60,6 +63,8 @@ if data.summary:
     c4.metric("Energy Saved %", f"{s['energy_saved_pct']}%")
     c5.metric("Comfort Maintained", "Yes" if s["comfort_maintained"] else "No")
     c6.metric("AI Comfort Violations", s["ai_driven"]["comfort_violations"])
+elif data.summary and data.summary_stale:
+    st.warning(f"**KPI summary is stale — not displayed.** {data.summary_stale_reason}")
 else:
     st.info(
         "KPI summary not available yet. Run `python -m app.comparison` "
