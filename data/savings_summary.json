@@ -1,0 +1,19 @@
+{
+  "baseline": {
+    "timesteps": 96,
+    "total_energy_kwh": 171.966,
+    "avg_zone_temp_c": 22.99,
+    "comfort_violations": 0,
+    "comfort_violation_rate_pct": 0.0
+  },
+  "ai_driven": {
+    "timesteps": 72,
+    "total_energy_kwh": 134.701,
+    "avg_zone_temp_c": 23.67,
+    "comfort_violations": 0,
+    "comfort_violation_rate_pct": 0.0
+  },
+  "energy_saved_kwh": 37.265,
+  "energy_saved_pct": 21.67,
+  "comfort_maintained": true
+}

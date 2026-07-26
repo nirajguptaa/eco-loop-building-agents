@@ -23,4 +23,19 @@ loop:
 paths:
   mock_metrics_csv: "data/mock_metrics.csv"
   demo_transcript: "data/demo_transcript.jsonl"
-  log_output: "data/run_log.jsonl"
+  ai_log_output: "data/ai_run_log.jsonl"
+  baseline_log_output: "data/baseline_run_log.jsonl"
+  summary_output: "data/savings_summary.json"
+
+baseline:
+  # Fixed setpoint a traditional rule-based BMS would use — the
+  # comparison point for "energy efficiency realized" scoring.
+  fixed_setpoint_c: 23
+  fixed_lighting_pct: 80
+  fixed_ventilation: "medium"
+
+agent:
+  # Setpoint changes smaller than this (Celsius) are treated as noise,
+  # not a real decision, and snapped back to the previous setpoint.
+  # Tune this after observing real LLM behavior in ai_run_log.jsonl.
+  min_meaningful_change_c: 0.3
